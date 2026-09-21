@@ -16,6 +16,10 @@ DEFAULT_ROLES = [
         "name": "Client",
         "description": "Reviews project progress and provides feedback.",
     },
+    {
+        "name": "Admin",
+        "description": "Has full administrative access to organization resources.",
+    },
 ]
 
 

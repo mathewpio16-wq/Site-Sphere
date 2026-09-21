@@ -81,11 +81,28 @@ from app.services.project_update_comment import (
     delete_project_update_comment,
 )
 
+from app.core.permissions import has_role, require_role
+
 router = APIRouter(
     prefix="/projects",
     tags=["Projects"]
 )
 
+@router.get("/test-permissions")
+def test_permissions(
+    current_user: User = Depends(get_current_user),
+):
+    require_role(
+        current_user,
+        ["Admin", "Manager"],
+    )
+
+    return {
+        "message": "You have permission to access this route",
+        "role": current_user.role.name,
+    }   
+    
+    
 
 @router.post(
     "",
@@ -97,6 +114,12 @@ def create_new_project(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    
+    require_role(
+        current_user,
+        ["Admin", "Manager"],
+    )
+    
     project = create_project(
         db=db,
         project_data=project_data,
