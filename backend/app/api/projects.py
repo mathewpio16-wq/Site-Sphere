@@ -81,7 +81,7 @@ from app.services.project_update_comment import (
     delete_project_update_comment,
 )
 
-from app.core.permissions import has_role, require_role
+from app.core.permissions import has_role, require_role, require_project_access
 
 router = APIRouter(
     prefix="/projects",
@@ -141,6 +141,7 @@ def get_all_projects(
     projects = get_projects(
         db=db,
         organization_id=current_user.organization_id,
+        user=current_user,
     )
     
     return projects
@@ -166,6 +167,12 @@ def get_single_project(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Project not found"
         )
+    
+    require_project_access(
+        db=db,
+        user=current_user,
+        project_id=project_id,
+    )
     
     return project
 

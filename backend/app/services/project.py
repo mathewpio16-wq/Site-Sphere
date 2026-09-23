@@ -2,6 +2,9 @@ from sqlalchemy.orm import Session
 
 from app.models.project import Project
 from app.schemas.project import ProjectCreate, ProjectUpdate
+from app.models.user import User
+from app.models.project_member import ProjectMember
+from app.core.permissions import has_role
 
 def create_project(
     db: Session,
@@ -23,11 +26,29 @@ def create_project(
 def get_projects(
     db: Session,
     organization_id: int,
+    user: User
 ):
+    
+    if has_role(user, ["Admin", "Manager"]):
+        projects = (
+            db.query(Project)
+            .filter(
+                Project.organization_id == organization_id,
+            )
+            .all()
+        )
+        
+        return projects
+    
     projects = (
         db.query(Project)
+        .join(
+            ProjectMember,
+            ProjectMember.project_id == Project.id
+        )
         .filter(
-            Project.organization_id == organization_id
+            Project.organization_id == organization_id,
+            ProjectMember.user_id == user.id,
         )
         .all()
     )
