@@ -3,6 +3,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from app.models.project_member import ProjectMember
 from app.models.project_update import ProjectUpdate
+from app.models.project_update_comment import ProjectUpdateComment
 
 
 
@@ -65,3 +66,25 @@ def require_update_ownership(
         status_code=status.HTTP_403_FORBIDDEN,
         detail="You are not allowed to modify this project update",
     )
+    
+    
+
+def require_comment_ownership(
+    user: User,
+    project_update_comment: ProjectUpdateComment
+):
+    if has_role(user, ["Admin", "Manager"]):
+        return
+    
+    if project_update_comment.user_id == user.id:
+        return
+    
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="You are not allowed to modify this project update comment",
+    )
+    
+
+
+
+

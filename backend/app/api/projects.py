@@ -79,9 +79,16 @@ from app.services.project_update_comment import (
     get_project_update_comments,
     update_project_update_comment,
     delete_project_update_comment,
+    get_project_update_comment,
 )
 
-from app.core.permissions import has_role, require_role, require_project_access, require_update_ownership
+from app.core.permissions import (
+    has_role, 
+    require_role, 
+    require_project_access, 
+    require_update_ownership,
+    require_comment_ownership,
+)
 
 router = APIRouter(
     prefix="/projects",
@@ -939,6 +946,12 @@ def get_project_update_images_route(
             detail="Update not found"
         )
         
+    require_project_access(
+        db=db,
+        user=current_user,
+        project_id=project_id,
+    )
+        
     return images
 
 
@@ -955,6 +968,31 @@ def create_comment(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    _, error = get_project_update(
+        db=db,
+        organization_id=current_user.organization_id,
+        project_id=project_id,
+        update_id=update_id,
+    )
+    
+    if error == "project_not_found":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found",
+        )
+        
+    if error == "update_not_found":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Update not found",
+        )
+    
+    require_project_access(
+        db=db,
+        user=current_user,
+        project_id=project_id,
+    )
+    
     project_update_comment, error = create_project_update_comment(
         db=db,
         organization_id=current_user.organization_id,
@@ -996,6 +1034,31 @@ def get_comments(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    _, error = get_project_update(
+        db=db,
+        organization_id=current_user.organization_id,
+        project_id=project_id,
+        update_id=update_id,
+    )
+    
+    if error == "project_not_found":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found",
+        )
+        
+    if error == "update_not_found":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Update not found",
+        )
+    
+    require_project_access(
+        db=db,
+        user=current_user,
+        project_id=project_id,
+    )
+
     comments, error = get_project_update_comments(
         db=db,
         organization_id=current_user.organization_id,
@@ -1032,10 +1095,65 @@ def update_comment(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    _, error = get_project_update(
+        db=db,
+        organization_id=current_user.organization_id,
+        project_id=project_id,
+        update_id=update_id,
+    )
+    
+    if error == "project_not_found":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found",
+        )
+        
+    if error == "update_not_found":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Update not found",
+        )
+    
+    require_project_access(
+        db=db,
+        user=current_user,
+        project_id=project_id,
+    )  
+    
+    existing_comment, error = get_project_update_comment(
+        db=db,
+        organization_id=current_user.organization_id,
+        project_id=project_id,
+        update_id=update_id,
+        comment_id=comment_id
+    )
+    
+    if error == "project_not_found":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found",
+        )
+        
+    if error == "update_not_found":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Update not found",
+        )
+    
+    if error == "comment_not_found":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Comment not found",
+        )
+        
+    require_comment_ownership(
+        user=current_user,
+        project_update_comment=existing_comment,
+    )
+    
     comment, error = update_project_update_comment(
         db=db,
         organization_id=current_user.organization_id,
-        user_id=current_user.id,
         project_id=project_id,
         update_id=update_id,
         comment_id=comment_id,
@@ -1060,12 +1178,6 @@ def update_comment(
             detail="Comment not found",
         )
         
-    if error == "not_comment_owner":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You are not allowed to edit this comment"
-        )
-        
         
     return comment
 
@@ -1082,10 +1194,65 @@ def delete_comment(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    _, error = get_project_update(
+        db=db,
+        organization_id=current_user.organization_id,
+        project_id=project_id,
+        update_id=update_id,
+    )
+    
+    if error == "project_not_found":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found",
+        )
+        
+    if error == "update_not_found":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Update not found",
+        )
+    
+    require_project_access(
+        db=db,
+        user=current_user,
+        project_id=project_id,
+    )  
+    
+    existing_comment, error = get_project_update_comment(
+        db=db,
+        organization_id=current_user.organization_id,
+        project_id=project_id,
+        update_id=update_id,
+        comment_id=comment_id
+    )
+    
+    if error == "project_not_found":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found",
+        )
+        
+    if error == "update_not_found":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Update not found",
+        )
+    
+    if error == "comment_not_found":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Comment not found",
+        )
+        
+    require_comment_ownership(
+        user=current_user,
+        project_update_comment=existing_comment,
+    )
+    
     _, error = delete_project_update_comment(
         db=db,
         organization_id=current_user.organization_id,
-        user_id=current_user.id,
         update_id=update_id,
         comment_id=comment_id,
         project_id=project_id
@@ -1107,12 +1274,6 @@ def delete_comment(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Comment not found"
-        )
-            
-    if error == "not_comment_owner":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You are not allowed to delete this comment"
         )
         
     return None
