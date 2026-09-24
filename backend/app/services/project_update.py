@@ -27,17 +27,6 @@ def create_project_update(
     if not project:
         return None, "project_not_found"
     
-    member = (
-        db.query(ProjectMember)
-        .filter(
-            ProjectMember.project_id == project_id,
-            ProjectMember.user_id == user_id,
-        )
-        .first()
-    )
-    
-    if not member:
-        return None, "user_not_project_member"
     
     project_update = ProjectUpdate(
         project_id=project_id,
@@ -122,7 +111,6 @@ def update_project_update(
     db: Session,
     organization_id: int,
     update_id: int,
-    user_id: int,
     project_id: int,
     update_data: ProjectUpdateUpdate,
 ):
@@ -150,8 +138,6 @@ def update_project_update(
     if not project_update:
         return None, "update_not_found"
     
-    if project_update.user_id != user_id:
-        return None, "not_update_owner"
     
     update = update_data.model_dump(
         exclude_unset=True
@@ -172,7 +158,6 @@ def delete_project_update(
     project_id: int,
     update_id: int,
     organization_id: int,
-    user_id: int,
 ):
     project = (
         db.query(Project)
@@ -198,10 +183,6 @@ def delete_project_update(
     
     if not project_update:
         return False, "update_not_found"
-    
-    
-    if project_update.user_id != user_id:
-        return False, "not_update_owner"
     
     db.delete(project_update)
     db.commit()

@@ -81,7 +81,7 @@ from app.services.project_update_comment import (
     delete_project_update_comment,
 )
 
-from app.core.permissions import has_role, require_role, require_project_access
+from app.core.permissions import has_role, require_role, require_project_access, require_update_ownership
 
 router = APIRouter(
     prefix="/projects",
@@ -244,6 +244,11 @@ def add_member_to_project(
     # - user belongs to current organisation
     # - user isn't already assigned to the project
     
+    require_role(
+        current_user,
+        ["Admin", "Manager"],
+    )
+    
     project_member, error = add_project_member(
         db=db,
         project_id=project_id,
@@ -296,6 +301,12 @@ def get_members_of_project(
             detail="Project not found"
         )
     
+    require_project_access(
+        db=db,
+        user=current_user,
+        project_id=project_id,
+    )
+    
     return members
 
 
@@ -310,6 +321,11 @@ def remove_member_from_project(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    require_role(
+        current_user,
+        ["Admin", "Manager"],
+    )
+    
     deleted, error = remove_project_member(
         db=db,
         project_id=project_id,
@@ -347,6 +363,11 @@ def create_project_task(
     # project_id comes from the URL.
     # organization_id comes from the authenticated user.
     # task_data contains the information submitted in the request body.
+    
+    require_role(
+        current_user,
+        ["Admin", "Manager"],
+    )
     
     task, error = create_task(
         db=db,
@@ -391,6 +412,17 @@ def list_project_tasks(
             detail="Project not found"
         )
         
+    require_role(
+        current_user,
+        ["Admin", "Manager", "Staff"],
+    )
+    
+    require_project_access(
+        db=db,
+        user=current_user,
+        project_id=project_id,
+    )
+        
     return tasks
 
 
@@ -417,6 +449,17 @@ def get_project_task(
             detail="Task not found",
         )
         
+    require_role(
+        current_user,
+        ["Admin", "Manager", "Staff"],
+    )    
+    
+    require_project_access(
+        db=db,
+        user=current_user,
+        project_id=project_id,
+    )
+    
     return task
 
 
@@ -432,6 +475,11 @@ def update_project_task(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    require_role(
+        current_user,
+        ["Admin", "Manager"]
+    )
+    
     task, error = update_task(
         db=db,
         project_id=project_id,
@@ -472,6 +520,11 @@ def delete_project_task(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    require_role(
+        current_user,
+        ["Admin", "Manager"]
+    )
+    
     _, error = delete_task(
         db=db,
         project_id=project_id,
@@ -506,6 +559,29 @@ def create_the_project_update(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    require_role(
+        current_user,
+        ["Admin", "Manager", "Staff"],
+    )
+    
+    project = get_project_by_id(
+        db=db,
+        project_id=project_id,
+        organization_id=current_user.organization_id,
+    )
+    
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found"
+        )
+    
+    require_project_access(
+        db=db,
+        user=current_user,
+        project_id=project_id,
+    )
+    
     project_update, error = create_project_update(
         db=db,
         organization_id=current_user.organization_id,
@@ -518,12 +594,6 @@ def create_the_project_update(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Project not found",
-        )
-        
-    if error == "user_not_project_member":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You are not a member of this project",
         )
         
     return project_update
@@ -550,6 +620,12 @@ def list_project_updates(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Project not found"
         )
+        
+    require_project_access(
+        db=db,
+        user=current_user,
+        project_id=project_id,
+    )
         
     return project_updates
 
@@ -583,7 +659,12 @@ def the_project_update(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Project update not found"
         )
-        
+    
+    require_project_access(
+        db=db,
+        user=current_user,
+        project_id=project_id,
+    )
     
     return project_update
 
@@ -600,20 +681,17 @@ def edit_update_project(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    update, error = update_project_update(
+    require_role(
+        current_user,
+        ["Admin", "Manager", "Staff"]
+    )
+    
+    existing_update, error = get_project_update(
         db=db,
         organization_id=current_user.organization_id,
         update_id=update_id,
         project_id=project_id,
-        update_data=update_data,
-        user_id=current_user.id,
     )
-    
-    if error == "not_update_owner":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You are not allowed to edit this project update",
-        )
         
     if error == "project_not_found":
         raise HTTPException(
@@ -621,6 +699,43 @@ def edit_update_project(
             detail="Project not found",
         )
         
+    if error == "update_not_found":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Update not found",
+        )
+        
+    # Staff must belong to the project.
+    # Admin/Manager automatically pass.
+    require_project_access(
+        db=db,
+        user=current_user,
+        project_id=project_id,
+    )
+
+    # Admin/Manager automatically pass.
+    # Staff must be the creator of the update.
+    require_update_ownership(
+        user=current_user,
+        project_update=existing_update,
+    )
+    
+    
+    # It is now safe to modify the database.
+    update, error = update_project_update(
+        db=db,
+        organization_id=current_user.organization_id,
+        update_id=update_id,
+        project_id=project_id,
+        update_data=update_data,
+    )
+
+    if error == "project_not_found":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found",
+        )
+
     if error == "update_not_found":
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -641,10 +756,14 @@ def remove_project_update(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    _, error = delete_project_update(
+    require_role(
+        current_user,
+        ["Admin", "Manager", "Staff"],
+    )
+    
+    existing_update, error = get_project_update(
         db=db,
         organization_id=current_user.organization_id,
-        user_id=current_user.id,
         project_id=project_id,
         update_id=update_id,
     )
@@ -661,10 +780,34 @@ def remove_project_update(
             detail="Update not found"
         )
         
-    if error == "not_update_owner":
+    require_project_access(
+        db=db,
+        user=current_user,
+        project_id=project_id,
+    )
+    
+    require_update_ownership(
+        user=current_user,
+        project_update=existing_update,
+    )
+    
+    _, error = delete_project_update(
+        db=db,
+        organization_id=current_user.organization_id,
+        project_id=project_id,
+        update_id=update_id,
+    )
+    
+    if error == "project_not_found":
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You are not permitted to delete this"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found",
+        )
+        
+    if error == "update_not_found":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Update not found",
         )
         
     return None
@@ -683,10 +826,39 @@ def upload_image_file(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    require_role(
+        current_user,
+        ["Admin", "Manager", "Staff"],
+    )
+    
+    existing_update, error = get_project_update(
+        db=db,
+        organization_id=current_user.organization_id,
+        project_id=project_id,
+        update_id=update_id,
+    )
+    
+    if error == "project_not_found":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found",
+        )
+        
+    if error == "update_not_found":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Update not found",
+        )
+    
+    require_project_access(
+        db=db,
+        user=current_user,
+        project_id=project_id,
+    )
+    
     image_upload, error = create_project_update_image(
         db=db,
         organization_id=current_user.organization_id,
-        user_id=current_user.id,
         update_id=update_id,
         project_id=project_id, 
         images=images,  
@@ -702,12 +874,6 @@ def upload_image_file(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Update not found",
-        )
-        
-    if error == "user_not_project_member":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User not a project member",
         )
     
     if error == "invalid_image_extension":

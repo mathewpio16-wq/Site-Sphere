@@ -15,7 +15,6 @@ def create_project_update_image(
     project_id: int,
     update_id: int,
     organization_id: int,
-    user_id: int,
     images: list[UploadFile],
 ):
     project = (
@@ -42,18 +41,6 @@ def create_project_update_image(
     if not project_update:
         return None, "update_not_found"
     
-    project_member = (
-        db.query(ProjectMember)
-        .filter(
-            ProjectMember.user_id == user_id,
-            ProjectMember.project_id == project_id,
-        )
-        .first()
-    )
-    
-    if not project_member:
-        return None, "user_not_project_member"
-    
     if not images:
         return None, "no_images"
     
@@ -78,9 +65,6 @@ def create_project_update_image(
     print("Number of images", len(images))
     
     for image in images:
-        print("Filename:", image.filename)
-        print("content-type:", image.content_type)
-        
         if image.content_type not in allowed_image_types:
             return None, "invalid_image_type"
     
