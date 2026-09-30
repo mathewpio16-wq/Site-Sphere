@@ -1,9 +1,12 @@
 from sqlalchemy.orm import Session
 
 from app.models.user import User
+from app.models.role import Role
+from app.models.organization import Organization
 from app.schemas.auth import RegisterRequest
 from app.core.security import hash_password, verify_password
 from app.core.security import verify_password
+from app.schemas.user import OrganizationUserCreate
 
 
 def register_user(
@@ -18,28 +21,54 @@ def register_user(
     )
     
     if existing_user:
-        return None
+        return None, "email_exists"
     
-    # hash the password before storing it
-    hashed_password = hash_password(user_data.password)
-    
-    # create new user
-    new_user = User(
-        organization_id=user_data.organization_id,
-        role_id=user_data.role_id,
-        first_name=user_data.first_name,
-        last_name=user_data.last_name,
-        email=user_data.email,
-        hashed_password=hashed_password,
-        phone=user_data.phone,
+    # Get the user role
+    admin_role = (
+        db.query(Role)
+        .filter(
+            Role.name == "Admin",
+        )
+        .first()
     )
     
-    # save the user
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+    if not admin_role:
+        return None, "admin_role_not_found"
     
-    return new_user
+    try:
+        # Prepare new organization
+        new_organization = Organization(
+            name=user_data.organization_name,
+        )
+        
+        db.add(new_organization)
+        
+        # send INSERT without commiting
+        db.flush()
+        
+        # hash the password before storing it
+        hashed_password = hash_password(user_data.password)
+        
+        # create new user
+        new_user = User(
+            organization_id=new_organization.id,
+            role_id=admin_role.id,
+            first_name=user_data.first_name,
+            last_name=user_data.last_name,
+            email=user_data.email,
+            hashed_password=hashed_password,
+            phone=user_data.phone,
+        )
+        
+        # save the user
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+    except Exception:
+        db.rollback()
+        return None, "registration_failed"    
+        
+    return new_user, None
 
 
 def authenticate_user(
@@ -70,3 +99,5 @@ def authenticate_user(
         return None
     
     return user
+
+

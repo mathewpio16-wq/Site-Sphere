@@ -1,4 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field
+from typing import Literal
 
 class RegisterRequest(BaseModel):
     first_name: str = Field(
@@ -18,9 +19,10 @@ class RegisterRequest(BaseModel):
         max_length=128
     )
     
-    organization_id: int
-    
-    role_id: int
+    organization_name: str = Field(
+        min_length=2,
+        max_length=150,
+    )
     
     phone: str | None = None
     
