@@ -143,6 +143,7 @@ def update_user(
         db=db,
         user_id=user_id,
         organization_id=current_user.organization_id,
+        creator_id=current_user.id,
         creator_role=current_user.role.name,
         update_data=update_data
     )
@@ -169,6 +170,18 @@ def update_user(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Role not found"
+        )
+        
+    if error == "cannot_deactivate_self":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You cannot deactivate your own account",
+        )
+        
+    if error == "cannot_change_own_role":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You cannot change your own role",
         )
         
     return updated_user

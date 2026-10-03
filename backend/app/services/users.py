@@ -103,6 +103,7 @@ def update_organization_user(
     db: Session,
     organization_id: int,
     user_id: int,
+    creator_id: int,
     creator_role: str,
     update_data: OrganizationUserUpdate,
 ):
@@ -117,6 +118,23 @@ def update_organization_user(
     
     if creator_role == "Manager" and user.role.name in ["Manager", "Admin"]:
         return None, "cannot_modify_user"
+    
+    is_self = creator_id == user_id
+    
+    if (
+        is_self
+        and creator_role == "Admin"
+        and update_data.is_active is False
+    ):
+        return None, "cannot_deactivate_self"
+    
+    if (
+        is_self
+        and creator_role == "Admin"
+        and update_data.role is not None
+    ):
+        return None, "cannot_change_own_role"
+    
     
     # Can this person assign the requested new role?
     if update_data.role:
