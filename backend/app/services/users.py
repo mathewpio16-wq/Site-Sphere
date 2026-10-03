@@ -5,6 +5,7 @@ from app.schemas.user import OrganizationUserCreate
 from app.models.user import User
 from app.models.role import Role
 from app.core.security import hash_password
+from app.schemas.user import OrganizationUserUpdate
 
 def create_organization_user(
     db: Session,
@@ -94,5 +95,57 @@ def get_organization_user(
     
     if not user:
         return None, "user_not_found"
+    
+    return user, None
+
+
+def update_organization_user(
+    db: Session,
+    organization_id: int,
+    user_id: int,
+    creator_role: str,
+    update_data: OrganizationUserUpdate,
+):
+    user, error = get_organization_user(
+        db=db,
+        organization_id=organization_id,
+        user_id=user_id,
+    )
+    
+    if error:
+        return None, error
+    
+    if creator_role == "Manager" and user.role.name in ["Manager", "Admin"]:
+        return None, "cannot_modify_user"
+    
+    # Can this person assign the requested new role?
+    if update_data.role:
+        if creator_role == "Manager" and update_data.role == "Manager":
+            return None, "role_not_allowed"
+    
+        role = (
+            db.query(Role)
+            .filter(
+                Role.name == update_data.role
+            )
+            .first()
+        )
+        
+        if not role:
+            return None, "role_not_found"
+        
+        user.role_id = role.id
+    
+    update_fields = update_data.model_dump(
+        exclude_unset=True,
+    )
+    
+    update_fields.pop("role", None)
+    
+    for field, value in update_fields.items():
+        setattr(user, field, value)
+        
+    db.commit()
+    db.refresh(user)
     
     return user, None

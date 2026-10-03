@@ -43,12 +43,24 @@ class OrganizationUserResponse(BaseModel):
     
     
 class OrganizationUserUpdate(BaseModel):
-    first_name: str | None = None
-    last_name: str | None = None
+    first_name: str | None = Field(
+        default=None,
+        min_length=2,
+        max_length=100,
+    )
+    
+    last_name: str | None = Field(
+        default=None,
+        min_length=2,
+        max_length=100,
+    )
+    
     phone: str | None = None
+    
     role: Literal[
         "Manager",
         "Staff",
         "Client",
     ] | None = None
+    
     is_active: bool | None = None
