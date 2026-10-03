@@ -7,3 +7,4 @@ from app.models.task import Task
 from app.models.project_update import ProjectUpdate
 from app.models.project_update_image import ProjectUpdateImage
 from app.models.project_update_comment import ProjectUpdateComment
+from app.models.notification import Notification

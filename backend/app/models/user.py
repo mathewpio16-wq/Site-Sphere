@@ -83,3 +83,8 @@ class User(Base):
         "Task",
         back_populates="assigned_user"
     )
+    
+    notifications = relationship(
+        "Notification",
+        back_populates="user",
+    )
