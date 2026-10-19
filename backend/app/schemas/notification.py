@@ -10,3 +10,8 @@ class NotificationResponse(BaseModel):
     created_at: datetime
     
     model_config = ConfigDict(from_attributes=True)
+    
+
+class NotificationCreate(BaseModel):
+    user_id: int
+    message: str
