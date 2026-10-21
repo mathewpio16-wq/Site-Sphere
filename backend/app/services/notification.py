@@ -45,3 +45,12 @@ def get_user_notifications(
     )
     
     return notifications
+
+
+
+def mark_notification_as_read(
+    notification_id: int,
+    user_id: int,
+    db: Session,
+):
+    pass
