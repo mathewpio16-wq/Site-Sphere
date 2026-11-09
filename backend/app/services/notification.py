@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
 from app.models.user import User
 from app.models.notification import Notification
 from app.schemas.notification import NotificationCreate
@@ -53,4 +54,48 @@ def mark_notification_as_read(
     user_id: int,
     db: Session,
 ):
-    pass
+    notification = (
+        db.query(Notification)
+        .filter(
+            Notification.id == notification_id,
+            Notification.user_id == user_id,
+        )
+        .first()
+    )
+
+    if not notification:
+        return None, "notification_not_found"
+
+    notification.is_read = True
+
+    db.commit()
+    db.refresh(notification)
+
+    return notification, None
+
+
+
+def mark_all_notifications_as_read(
+        db: Session,
+        user_id: int,
+):
+    try:
+        notifications = (
+            db.query(Notification)
+            .filter(
+                Notification.user_id == user_id,
+                Notification.is_read.is_(False),
+            )
+            .all()
+        )
+
+        for notification in notifications:
+            notification.is_read = True
+
+        db.commit()
+
+        return len(notifications)
+    
+    except SQLAlchemyError:
+        db.rollback()
+        raise

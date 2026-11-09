@@ -1,11 +1,13 @@
 import pydantic
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.models.project import Project
 from app.models.user import User
 from app.models.task import Task
 from app.schemas.task import TaskCreate, TaskUpdate, TaskResponse
 from app.models.project_member import ProjectMember
+from app.models.notification import Notification
 
 def create_task(
     db: Session,
@@ -47,16 +49,31 @@ def create_task(
     
     # Convert the validated Pydantic data into values
     # that can be passed to our SQLAlchemy Task model.
-    task = Task(
-        project_id=project_id,
-        **task_data.model_dump()
-    )
     
-    db.add(task)
-    db.commit()
-    
-    db.refresh(task)
-    
+    try:
+
+        task = Task(
+            project_id=project_id,
+            **task_data.model_dump()
+        )
+        
+        db.add(task)
+
+        if task_data.assigned_user_id is not None:
+            notification = Notification(
+                user_id=task_data.assigned_user_id,
+                message=f"You have been assigned a new task {task_data.title}",
+                is_read=False,
+            )
+
+            db.add(notification)
+
+        db.commit()
+        db.refresh(task)
+    except SQLAlchemyError:
+        db.rollback()
+        raise
+
     return task, None
 
 
@@ -141,41 +158,61 @@ def update_task(
     if not project:
         return None, "project_not_found"
     
-    task = (
-        db.query(Task)
-        .filter(
-            Task.id == task_id,
-            Task.project_id == project_id,
-        )
-        .first()
-    )
-    
-    if not task:
-        return None, "task_not_found"
-    
-    
-    if task_data.assigned_user_id is not None:
-        member = (
-            db.query(ProjectMember)
+    try:
+        task = (
+            db.query(Task)
             .filter(
-                ProjectMember.project_id == project_id,
-                ProjectMember.user_id == task_data.assigned_user_id,
+                Task.id == task_id,
+                Task.project_id == project_id,
             )
             .first()
         )
-    
-        if not member:
-            return None, "user_not_project_member"
-    
-    updated_task = task_data.model_dump(
-        exclude_unset=True,
-    )
-    
-    for field, value in updated_task.items():
-        setattr(task, field, value)
+            
+        if not task:
+            return None, "task_not_found"
+            
+            
+        if task_data.assigned_user_id is not None:
+            member = (
+                db.query(ProjectMember)
+                .filter(
+                    ProjectMember.project_id == project_id,
+                    ProjectMember.user_id == task_data.assigned_user_id,
+                )
+                .first()
+            )
         
-    db.commit()
-    db.refresh(task)
+            if not member:
+                return None, "user_not_project_member"
+    
+        old_assigned_user_id = task.assigned_user_id
+        
+        updated_task = task_data.model_dump(
+            exclude_unset=True,
+        )
+        
+        for field, value in updated_task.items():
+            setattr(task, field, value)
+    
+        if (
+            "assigned_user_id" in updated_task
+            and task.assigned_user_id != old_assigned_user_id
+            and task.assigned_user_id is not None
+        ):
+            notification = Notification(
+                user_id=task.assigned_user_id,
+                message=f"You have been assigned a task: {task.title}",
+                is_read=False,
+            )
+
+            db.add(notification)
+                
+        db.commit()
+        db.refresh(task)
+        
+    except SQLAlchemyError:
+        db.rollback()
+        raise
     
     return task, None
 

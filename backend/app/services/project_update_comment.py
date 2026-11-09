@@ -4,7 +4,8 @@ from app.models.project import Project
 from app.models.project_update import ProjectUpdate
 from app.models.user import User
 from app.models.project_update_comment import ProjectUpdateComment
-
+from app.models.notification import Notification
+from sqlalchemy.exc import SQLAlchemyError
 
 def create_project_update_comment(
     db: Session,
@@ -49,16 +50,43 @@ def create_project_update_comment(
     
     if not user:
         return None, "user_not_found"
+
+    try:
     
-    project_update_comment = ProjectUpdateComment(
-        project_update_id=update_id,
-        user_id=user_id,
-        content=content,
-    )
-    
-    db.add(project_update_comment)
-    db.commit()
-    db.refresh(project_update_comment)
+        project_update_comment = ProjectUpdateComment(
+            project_update_id=update_id,
+            user_id=user_id,
+            content=content,
+        )
+        
+        db.add(project_update_comment)
+
+        if project_update.user_id != user_id:
+            recipient = (
+                db.query(User)
+                .filter(
+                    User.id == project_update.user_id,
+                    User.organization_id == organization_id,
+                    User.is_active.is_(True),
+                )
+                .first()
+            )
+
+            if recipient:
+                notification = Notification(
+                    user_id=recipient.id,
+                    message=f"{user.first_name} commented on your project update: {project_update_comment.content}",
+                    is_read=False
+                )
+
+                db.add(notification)
+
+        db.commit()
+        db.refresh(project_update_comment)
+
+    except SQLAlchemyError:
+        db.rollback()
+        raise
     
     return project_update_comment, None
 

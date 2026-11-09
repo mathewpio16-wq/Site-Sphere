@@ -7,6 +7,9 @@ from app.schemas.project_update import (
 )
 from app.models.project_member import ProjectMember
 from app.models.project_update import ProjectUpdate
+from app.models.notification import Notification
+from app.models.user import User
+from sqlalchemy.exc import SQLAlchemyError
 
 def create_project_update(
     db: Session,
@@ -26,17 +29,46 @@ def create_project_update(
     
     if not project:
         return None, "project_not_found"
-    
-    
-    project_update = ProjectUpdate(
-        project_id=project_id,
-        user_id=user_id,
-        **update_data.model_dump(),
+
+    members = (
+        db.query(User)
+        .join(
+            ProjectMember,
+            ProjectMember.user_id == User.id,
+        )
+        .filter(
+            ProjectMember.project_id == project_id,
+            User.organization_id == organization_id,
+            User.id != user_id,
+            User.is_active.is_(True),
+        )
+        .all()
     )
+
+    try:
     
-    db.add(project_update)
-    db.commit()
-    db.refresh(project_update)
+        project_update = ProjectUpdate(
+            project_id=project_id,
+            user_id=user_id,
+            **update_data.model_dump(),
+        )
+        
+        db.add(project_update)
+        for member in members:
+            notification = Notification(
+                user_id = member.id,
+                message=f"New project update: {project_update.title}",
+                is_read=False
+            )
+
+            db.add(notification)
+
+
+        db.commit()
+        db.refresh(project_update)
+    except SQLAlchemyError:
+        db.rollback()
+        raise
     
     return project_update, None
 

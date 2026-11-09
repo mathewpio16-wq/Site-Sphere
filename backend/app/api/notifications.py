@@ -5,10 +5,19 @@ import os
 
 from app.core.database import get_db
 from app.dependencies.auth import get_current_user
-from app.schemas.notification import NotificationCreate, NotificationResponse
-from app.services.notification import create_notification
+from app.schemas.notification import (
+    NotificationCreate, 
+    NotificationResponse,
+    MarkAllNotificationsAsReadResponse
+)
 from app.models.user import User
-from app.services.notification import get_user_notifications
+from app.services.notification import (
+        get_user_notifications,
+        create_notification,
+        mark_notification_as_read,
+        mark_all_notifications_as_read,
+)
+
 
 
 router = APIRouter(
@@ -69,3 +78,49 @@ def get_user_notifications_route(
     )
     
     return notifications
+
+
+
+@router.patch(
+    "/{notification_id}/read",
+    response_model=NotificationResponse,
+    status_code=status.HTTP_200_OK,
+)
+def mark_as_read_route(
+    notification_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    mark_as_read, error = mark_notification_as_read(
+        db=db,
+        user_id=current_user.id,
+        notification_id=notification_id,
+    )
+
+    if error == "notification_not_found":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Notification not found",
+        )
+
+    return mark_as_read
+
+
+@router.patch(
+    "/read-all",
+    response_model=MarkAllNotificationsAsReadResponse,
+    status_code=status.HTTP_200_OK,
+)
+def mark_all_as_read_route(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    mark_all_as_read = mark_all_notifications_as_read(
+        db=db,
+        user_id=current_user.id,
+    )
+
+    return {
+        "message": "All notifications marked as read",
+        "updated_count": mark_all_as_read,
+    }

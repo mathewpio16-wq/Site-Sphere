@@ -15,3 +15,9 @@ class NotificationResponse(BaseModel):
 class NotificationCreate(BaseModel):
     user_id: int
     message: str
+
+
+class MarkAllNotificationsAsReadResponse(BaseModel):
+    message: str
+    updated_count: int
+
