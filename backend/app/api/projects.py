@@ -194,6 +194,11 @@ def update_existing_project(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    require_role(
+        current_user,
+        ["Admin", "Manager"],
+    )
+    
     project = update_project(
         db=db,
         project_id=project_id,
@@ -219,6 +224,11 @@ def delete_existing_project(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    require_role(
+        current_user,
+        ["Admin", "Manager"],
+    )
+    
     deleted = delete_project(
         db=db,
         project_id=project_id,
@@ -399,7 +409,7 @@ def create_project_task(
 
 
 @router.get(
-    "/projects/{project_id}/tasks",
+    "/{project_id}/tasks",
     response_model=list[TaskResponse],
 )
 def list_project_tasks(
@@ -434,7 +444,7 @@ def list_project_tasks(
 
 
 @router.get(
-    "/projects/{project_id}/tasks/{task_id}",
+    "/{project_id}/tasks/{task_id}",
     response_model=TaskResponse,
 )
 def get_project_task(
@@ -472,7 +482,7 @@ def get_project_task(
 
 
 @router.patch(
-    "/projects/{project_id}/tasks/{task_id}",
+    "/{project_id}/tasks/{task_id}",
     response_model=TaskResponse,
 )
 def update_project_task(
@@ -518,7 +528,7 @@ def update_project_task(
 
 
 @router.delete(
-    "/projects/{project_id}/tasks/{task_id}",
+    "/{project_id}/tasks/{task_id}",
     status_code=status.HTTP_204_NO_CONTENT,
 )
 def delete_project_task(
@@ -556,7 +566,7 @@ def delete_project_task(
 
 
 @router.post(
-    "/projects/{project_id}/updates",
+    "/{project_id}/updates",
     response_model=ProjectUpdateResponse,
     status_code=status.HTTP_201_CREATED,
 )
@@ -608,7 +618,7 @@ def create_the_project_update(
 
 
 @router.get(
-    "/projects/{project_id}/updates",
+    "/{project_id}/updates",
     response_model=list[ProjectUpdateResponse]
 )
 def list_project_updates(
@@ -639,7 +649,7 @@ def list_project_updates(
 
 
 @router.get(
-    "/projects/{project_id}/updates/{update_id}",
+    "/{project_id}/updates/{update_id}",
     response_model=ProjectUpdateResponse
 )
 def the_project_update(
@@ -678,7 +688,7 @@ def the_project_update(
 
 
 @router.patch(
-    "/projects/{project_id}/updates/{update_id}",
+    "/{project_id}/updates/{update_id}",
     response_model=ProjectUpdateResponse,
 )
 def edit_update_project(
@@ -754,7 +764,7 @@ def edit_update_project(
         
         
 @router.delete(
-    "/projects/{project_id}/updates/{update_id}",
+    "/{project_id}/updates/{update_id}",
     status_code=status.HTTP_204_NO_CONTENT,
 )
 def remove_project_update(
@@ -822,7 +832,7 @@ def remove_project_update(
 
 
 @router.post(
-    "/projects/{project_id}/updates/{update_id}/images",
+    "/{project_id}/updates/{update_id}/images",
     status_code=status.HTTP_201_CREATED,
     response_model=list[ProjectUpdateImageResponse],
 )
@@ -917,7 +927,7 @@ def upload_image_file(
 
 
 @router.get(
-    "/projects/{project_id}/updates/{update_id}/images",
+    "/{project_id}/updates/{update_id}/images",
     status_code=status.HTTP_200_OK,
     response_model=list[ProjectUpdateImageResponse],
 )
@@ -957,7 +967,7 @@ def get_project_update_images_route(
 
 
 @router.post(
-    "/projects/{project_id}/updates/{update_id}/comments",
+    "/{project_id}/updates/{update_id}/comments",
     status_code=status.HTTP_201_CREATED,
     response_model=ProjectUpdateCommentResponse,
 )
@@ -1024,7 +1034,7 @@ def create_comment(
 
 
 @router.get(
-    "/projects/{project_id}/updates/{update_id}/comments",
+    "/{project_id}/updates/{update_id}/comments",
     status_code=status.HTTP_200_OK,
     response_model=list[ProjectUpdateCommentResponse],
 )
@@ -1083,7 +1093,7 @@ def get_comments(
 
 
 @router.patch(
-    "/projects/{project_id}/updates/{update_id}/comments/{comment_id}",
+    "/{project_id}/updates/{update_id}/comments/{comment_id}",
     status_code=status.HTTP_200_OK,
     response_model=ProjectUpdateCommentResponse,
 )
@@ -1184,7 +1194,7 @@ def update_comment(
 
 
 @router.delete(
-    "/projects/{project_id}/updates/{update_id}/comments/{comment_id}",
+    "/{project_id}/updates/{update_id}/comments/{comment_id}",
     status_code=status.HTTP_204_NO_CONTENT,
 )
 def delete_comment(

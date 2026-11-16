@@ -99,3 +99,20 @@ def mark_all_notifications_as_read(
     except SQLAlchemyError:
         db.rollback()
         raise
+
+
+def get_unread_notification_count(
+    db: Session,
+    user_id: int,
+):
+    count_num = (
+        db.query(Notification)
+        .filter(
+            Notification.user_id == user_id,
+            Notification.is_read.is_(False)
+        )
+        .count()
+    )
+
+    return count_num
+

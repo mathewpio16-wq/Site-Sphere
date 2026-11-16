@@ -21,3 +21,5 @@ class MarkAllNotificationsAsReadResponse(BaseModel):
     message: str
     updated_count: int
 
+class UnreadNotificationCountResponse(BaseModel):
+    unread_count: int

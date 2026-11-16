@@ -8,7 +8,8 @@ from app.dependencies.auth import get_current_user
 from app.schemas.notification import (
     NotificationCreate, 
     NotificationResponse,
-    MarkAllNotificationsAsReadResponse
+    MarkAllNotificationsAsReadResponse,
+    UnreadNotificationCountResponse,
 )
 from app.models.user import User
 from app.services.notification import (
@@ -16,6 +17,7 @@ from app.services.notification import (
         create_notification,
         mark_notification_as_read,
         mark_all_notifications_as_read,
+        get_unread_notification_count,
 )
 
 
@@ -124,3 +126,21 @@ def mark_all_as_read_route(
         "message": "All notifications marked as read",
         "updated_count": mark_all_as_read,
     }
+
+
+
+@router.get(
+    "/unread-count",
+    response_model=UnreadNotificationCountResponse,
+    status_code=status.HTTP_200_OK,
+)
+def get_unread_count_route(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    count = get_unread_notification_count(
+        db=db,
+        user_id=current_user.id,
+    )
+
+    return {"unread_count": count}
